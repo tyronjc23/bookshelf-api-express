@@ -1,21 +1,14 @@
+require('dotenv').config();
 const express = require('express');
 
 const app = express();
-const port = 8000;
 
-app.get('/', (_, res) => {
-  res.send('Hello World');
-});
+const PORT = process.env.PORT || 4000;
+const BookRoutes = require('./Routes/BookRoutes');
 
-app.get('/name', (_, res) => {
-  const data = {
-    name: 'Tyron',
-    email: 'tyronjc23@gmail.com',
-  };
+app.use(express.json());
+app.use('/books', BookRoutes);
 
-  res.json(data);
-});
-
-app.listen(port, () => {
-  console.log(`Server berjalan pada http://localhost:${port}`);
+app.listen(PORT, () => {
+  console.log(`Server berjalan pada port ${PORT}`);
 });
