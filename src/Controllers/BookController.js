@@ -1,75 +1,58 @@
 /* eslint-disable eqeqeq */
-const { nanoid } = require('nanoid');
-const books = require('../Models/books');
+const bookModel = require('../Models/bookModel');
 
-const getAllBooks = (req, res) => {
-  const { name, reading, finished } = req.query;
-  let result = [];
+const getAllBooks = async (req, res) => {
+  let books = [];
 
-  if (Object.keys(req.query).length === 0) {
-    result = books;
-  } else {
-    if (name !== undefined) {
-      const pattern = new RegExp(name, 'i');
-      result = books.filter((book) => book.name.match(pattern));
-    }
+  try {
+    books = await bookModel.getAllBooks();
 
-    if (reading !== undefined) {
-      switch (reading) {
-        case '1':
-        case 1:
-        case true:
-          result = books.filter((n) => n.reading === true);
-          break;
+    if (Object.keys(req.query).length !== 0) {
+      const { name, reading, finished } = req.query;
 
-        case '0':
-        case 0:
-        case false:
-          result = books.filter((n) => n.reading === false);
-          break;
+      if (name !== undefined) {
+        const pattern = new RegExp(name, 'i');
+        books = books.filter((book) => book.name.match(pattern));
+      }
 
-        default:
-          result = books;
-          break;
+      if (reading !== undefined) {
+        if (reading) {
+          books = books.filter((n) => n.reading === true);
+        } else {
+          books = books.filter((n) => n.reading === false);
+        }
+      }
+
+      if (finished !== undefined) {
+        if (finished) {
+          books = books.filter((n) => n.finished === true);
+        } else {
+          books = books.filter((n) => n.finished === false);
+        }
       }
     }
 
-    if (finished !== undefined) {
-      switch (finished) {
-        case '1':
-        case 1:
-        case true:
-          result = books.filter((book) => book.finished == true);
-          break;
+    books = books.map((book) => ({
+      id: book.id,
+      name: book.name,
+      publisher: book.publisher,
+    }));
 
-        case '0':
-        case 0:
-        case false:
-          result = books.filter((book) => book.finished == false);
-          break;
-
-        default:
-          result = books;
-          break;
-      }
-    }
+    res.status(200).send({
+      status: 'success',
+      data: {
+        books,
+      },
+    });
+  } catch (err) {
+    res.status(404).send({
+      status: 'fail',
+      message: err.message,
+    });
   }
-
-  result = result.map((book) => ({
-    id: book.id,
-    name: book.name,
-    publisher: book.publisher,
-  }));
-
-  res.status(200).json({
-    status: 'success',
-    data: {
-      books: result,
-    },
-  });
 };
 
-const addBooks = (req, res) => {
+const addBooks = async (req, res) => {
   const {
     name,
     year,
@@ -81,7 +64,6 @@ const addBooks = (req, res) => {
     reading,
   } = req.body;
 
-  const id = nanoid(16);
   const insertedAt = new Date().toISOString();
   const updatedAt = insertedAt;
   const finished = pageCount === readPage;
@@ -89,7 +71,6 @@ const addBooks = (req, res) => {
   try {
     if (name === undefined) {
       const responseData = {
-        status: 'fail',
         message: 'Gagal menambahkan buku. Mohon isi nama buku',
         statusCode: 400,
       };
@@ -98,7 +79,6 @@ const addBooks = (req, res) => {
 
     if (readPage > pageCount) {
       const responseData = {
-        status: 'fail',
         message:
           'Gagal menambahkan buku. readPage tidak boleh lebih besar dari pageCount',
         statusCode: 400,
@@ -107,7 +87,6 @@ const addBooks = (req, res) => {
     }
 
     const newBook = {
-      id,
       name,
       year,
       author,
@@ -121,55 +100,52 @@ const addBooks = (req, res) => {
       updatedAt,
     };
 
-    books.push(newBook);
-    const isSuccess = books.filter((book) => book.id === id).length > 0;
+    const book = await bookModel.addBooks(newBook);
 
-    if (!isSuccess) {
+    if (!book) {
       const responseData = {
-        status: 'fail',
         message: 'Buku gagal ditambahkan',
         statusCode: 500,
       };
       throw responseData;
     }
+
+    res.status(201).send({
+      status: 'success',
+      message: 'Buku berhasil ditambahkan',
+      data: {
+        bookId: book.id,
+      },
+    });
   } catch (err) {
-    res.status(err.statusCode).json({
-      status: err.status,
+    res.status(err.statusCode || 404).send({
+      status: 'fail',
       message: err.message,
     });
-    return;
   }
-
-  res.status(201).json({
-    status: 'success',
-    message: 'Buku berhasil ditambahkan',
-    data: {
-      bookId: id,
-    },
-  });
 };
 
-const getBookById = (req, res) => {
+const getBookById = async (req, res) => {
   const { id } = req.params;
-  const book = books.filter((n) => n.id === id)[0];
 
-  if (book === undefined) {
-    res.status(404).json({
-      status: 'fail',
-      message: 'Buku tidak ditemukan',
+  try {
+    const book = await bookModel.getBookById(Number(id));
+
+    res.send({
+      status: 'success',
+      data: {
+        book,
+      },
     });
-    return;
+  } catch (err) {
+    res.status(404).send({
+      status: 'fail',
+      message: err.message,
+    });
   }
-
-  res.json({
-    status: 'success',
-    data: {
-      book,
-    },
-  });
 };
 
-const editBookById = (req, res) => {
+const editBookById = async (req, res) => {
   const { id } = req.params;
   const {
     name,
@@ -183,21 +159,10 @@ const editBookById = (req, res) => {
   } = req.body;
   const updatedAt = new Date().toISOString();
   const finished = pageCount === readPage;
-  const index = books.findIndex((book) => book.id === id);
 
   try {
-    if (index === -1) {
-      const responseData = {
-        status: 'fail',
-        message: 'Gagal memperbarui buku. Id tidak ditemukan',
-        statusCode: 404,
-      };
-      throw responseData;
-    }
-
     if (name === undefined) {
       const responseData = {
-        status: 'fail',
         message: 'Gagal memperbarui buku. Mohon isi nama buku',
         statusCode: 400,
       };
@@ -206,7 +171,6 @@ const editBookById = (req, res) => {
 
     if (readPage > pageCount) {
       const responseData = {
-        status: 'fail',
         message:
           'Gagal memperbarui buku. readPage tidak boleh lebih besar dari pageCount',
         statusCode: 400,
@@ -214,8 +178,7 @@ const editBookById = (req, res) => {
       throw responseData;
     }
 
-    books[index] = {
-      ...books[index],
+    const updateBook = {
       name,
       year,
       author,
@@ -227,38 +190,37 @@ const editBookById = (req, res) => {
       reading,
       updatedAt,
     };
+
+    await bookModel.editBookById(Number(id), updateBook);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Buku berhasil diperbarui',
+    });
   } catch (err) {
-    res.status(err.statusCode).json({
-      status: err.status,
+    res.status(err.statusCode || 404).json({
+      status: 'fail',
       message: err.message,
     });
-    return;
   }
-
-  res.status(200).json({
-    status: 'success',
-    message: 'Buku berhasil diperbarui',
-  });
 };
 
-const deleteBookById = (req, res) => {
+const deleteBookById = async (req, res) => {
   const { id } = req.params;
-  const index = books.findIndex((book) => book.id === id);
 
-  if (index !== -1) {
-    books.splice(index, 1);
+  try {
+    await bookModel.deleteBookById(Number(id));
 
     res.status(200).json({
       status: 'success',
       message: 'Buku berhasil dihapus',
     });
-    return;
+  } catch (err) {
+    res.status(err.statusCode || 404).send({
+      status: 'fail',
+      message: err.message,
+    });
   }
-
-  res.status(404).json({
-    status: 'fail',
-    message: 'Buku gagal dihapus. Id tidak ditemukan',
-  });
 };
 
 module.exports = {
