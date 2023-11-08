@@ -1,17 +1,17 @@
 const prisma = require('../Config/database');
 
-const getAllBooks = async () => {
-  const books = await prisma.book.findMany();
-
-  return books;
-};
-
 const addBooks = async (newBook) => {
   const book = await prisma.book.create({
     data: newBook,
   });
 
   return book;
+};
+
+const getAllBooks = async () => {
+  const books = await prisma.book.findMany();
+
+  return books;
 };
 
 const getBookById = async (bookId) => {
@@ -22,7 +22,7 @@ const getBookById = async (bookId) => {
   });
 
   if (!book) {
-    throw new Error(`Buku id ${bookId} tidak ditemukan`);
+    throw new Error('Buku tidak ditemukan');
   }
 
   return book;
@@ -37,7 +37,7 @@ const editBookById = async (bookId, updateBook) => {
   });
 
   if (!book) {
-    throw new Error(`Gagal memperbarui buku. Id ${bookId} tidak ditemukan`);
+    throw new Error('Gagal memperbarui buku. Id tidak ditemukan');
   }
 
   return book;
@@ -51,7 +51,7 @@ const deleteBookById = async (bookId) => {
   });
 
   if (!book) {
-    throw new Error(`Buku gagal dihapus. Id ${bookId} tidak ditemukan`);
+    throw new Error('Buku gagal dihapus. Id tidak ditemukan');
   }
 
   return book;
