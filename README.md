@@ -8,7 +8,17 @@ REST APIs sederhana menggunakan [Express](https://expressjs.com)
 
 1. Import Bookshelf API Test.postman_collection.json di Postman
 2. Import Bookshelf API Test.postman_environment.json di Postman
-3. Jalankan server
+3. copy file `env.example` to `.env`
+4. Buat database baru menggunakan mysql dan nama tabel bookshelf
+5. Jalankan perintah
+
+```
+npx prisma db push
+```
+
+Prisma akan membuat tabel secara otomatis
+
+6. Jalankan server
 
 ```
 npm run start
